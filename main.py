@@ -1,7 +1,9 @@
 from fastapi import FastAPI, File, UploadFile
 from search import SearchEngine
-app = FastAPI()
+from PIL import Image
+import io
 
+app = FastAPI()
 
 @app.get("/")
 async def root():
@@ -13,5 +15,5 @@ async def search_image(image: bytes = File(), algorithm = None):
     return {
         "code": "200",
         "message": "Success",
-        "data": searchEngine.Query(img= image)
+        "data": searchEngine.Query(image= Image.open(io.BytesIO(image)))
     }

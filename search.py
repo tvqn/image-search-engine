@@ -50,10 +50,10 @@ class SearchEngine:
     def LoadIndex(self, path):
         with open(path) as indexFile:
             self.IndexDict = json.load(indexFile)
-    def Query(self, img):
+    def Query(self, image):
         score = []
         name = []
-        image = Image.open(io.BytesIO(img))
+        # image = Image.open(io.BytesIO(img))
         hash = imagehash.average_hash(image)
         #Metric algorithm
         for i in tqdm(self.IndexDict.keys(), desc="Query"):
@@ -69,8 +69,8 @@ class SearchEngine:
     def CalculateSimilar(self, name, featureQuery, featureCollector, typeFeature = None):
         score = featureQuery - featureCollector
         return (name, score)
-    def Ranking(self, result, amount, typeFeature = None):
-        return sorted(result)[:amount]
+    def Ranking(self, result, topK, typeFeature = None):
+        return sorted(result)[:topK]
     
 if __name__ == "__main__":
     config = {
