@@ -53,7 +53,7 @@ if __name__ == "__main__":
     aps = []
     rank_file = os.getcwd() + "tmp.txt"
     for idx, query in enumerate(tqdm(images, desc="Calculate mAP")):
-        result = searchEngine.Query(image= images[idx])
+        result = searchEngine.Query(image= images[idx], topK= 10)
 
         with open(rank_file, 'w') as f:
             f.writelines([name[1].split('.jpg')[0] + '\n' for name in result])
