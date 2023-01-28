@@ -50,25 +50,29 @@ class SearchEngine:
     def LoadIndex(self, path):
         with open(path) as indexFile:
             self.IndexDict = json.load(indexFile)
-    def Query(self, image):
+    def Query(self, image, verbose = False):
         score = []
         name = []
         # image = Image.open(io.BytesIO(img))
         hash = imagehash.average_hash(image)
         #Metric algorithm
-        for i in tqdm(self.IndexDict.keys(), desc="Query"):
-            #Hammington distance
-            score.append(hash - imagehash.hex_to_hash(self.IndexDict[i]['feature']))
-            name.append(i)
+        result = []
+        for i in tqdm(self.IndexDict.keys(), desc="Query", disable= not verbose):
+            result.append(self.CalculateSimilar(i, hash, imagehash.hex_to_hash(self.IndexDict[i]['feature'])))
+            # #Hammington distance
+            # score.append(hash - imagehash.hex_to_hash(self.IndexDict[i]['feature']))
+            # name.append(i)
         #Ranking
         # for img in sorted(zip(score, name))[:10]:
         #     src = os.path.join('data', img[1])
         #     dst = 'result'
         #     shutil.copy(src, dst)
-        return self.Ranking(zip(score, name), 10);
+        # return self.Ranking(zip(score, name), 10);
+        return self.Ranking(result= result, topK= 10)
     def CalculateSimilar(self, name, featureQuery, featureCollector, typeFeature = None):
+        #Hammington distance
         score = featureQuery - featureCollector
-        return (name, score)
+        return (score, name)
     def Ranking(self, result, topK, typeFeature = None):
         return sorted(result)[:topK]
     

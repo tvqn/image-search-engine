@@ -165,5 +165,10 @@ test*
 *.ipynb
 *.rdb
 
+# temporary folder
 data/
 gt_files/
+
+# C++
+*.exe
+*.obj
