@@ -169,6 +169,7 @@ test*
 data/
 gt_files/
 sift_feature/
+tmp/
 # C++
 *.exe
 *.obj
