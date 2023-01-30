@@ -7,6 +7,7 @@ import shutil
 import os
 from tqdm import tqdm
 import cv2
+import numpy as np
 
 class FeatureExtraction:
     def __init__(self, config : dict = None) -> None:
@@ -26,29 +27,40 @@ class FeatureExtraction:
             self.TypeFeature = config["typeFeature"]
     def FeatureExtraction(self, image, typeFeature = None):
         return imagehash.average_hash(image=image)
-    def SIFT(img_names, db_dir, save_dir):
+    def SIFT(self, pil_image):
         sift = cv2.xfeatures2d.SIFT_create()
-        for i, line in enumerate(img_names):
-            img_path = os.path.join(db_dir, line)
-            img = cv2.imread(img_path, 0)
-            height, width = img.shape[:2]
-            img_resize = cv2.resize(img, (int(0.5*width), int(0.5*height)))
-            kp, des = sift.detectAndCompute(img_resize, None)
-            with open(os.path.join(save_dir, line.split('.jpg')[0] + '.opencv.sift'), 'w') as f:
-                if des is None:
-                    f.write(str(128) + '\n')
-                    f.write(str(0) + '\n')
-                    print("Null: %s" % line)
-                    continue
-                if len(des) > 0:
-                    f.write(str(128) + '\n')
-                    f.write(str(len(kp)) + '\n')
-                    for j in range(len(des)):
-                        locs_str = '0 0 0 0 0 '
-                        descs_str = " ".join([str(int(value)) for value in des[j]])
-                        all_strs = locs_str + descs_str
-                        f.write(all_strs + '\n')
+        image = self.ToImageOpenCV(image= pil_image, grayScale= True)
+        height, width = image.shape[:2]
+        img_resize = cv2.resize(image, (int(0.5*width), int(0.5*height)))
+        kp, des = sift.detectAndCompute(img_resize, None)
 
+        img=cv2.drawKeypoints(img_resize, kp, img_resize)
+        return img
+        # for i, line in enumerate(img_names):
+        #     img_path = os.path.join(db_dir, line)
+        #     img = cv2.imread(img_path, 0)
+        #     height, width = img.shape[:2]
+        #     img_resize = cv2.resize(img, (int(0.5*width), int(0.5*height)))
+        #     kp, des = sift.detectAndCompute(img_resize, None)
+        #     with open(os.path.join(save_dir, line.split('.jpg')[0] + '.opencv.sift'), 'w') as f:
+        #         if des is None:
+        #             f.write(str(128) + '\n')
+        #             f.write(str(0) + '\n')
+        #             print("Null: %s" % line)
+        #             continue
+        #         if len(des) > 0:
+        #             f.write(str(128) + '\n')
+        #             f.write(str(len(kp)) + '\n')
+        #             for j in range(len(des)):
+        #                 locs_str = '0 0 0 0 0 '
+        #                 descs_str = " ".join([str(int(value)) for value in des[j]])
+        #                 all_strs = locs_str + descs_str
+        #                 f.write(all_strs + '\n')
+    def ToImageOpenCV(self, image, grayScale = False):
+        npImage = np.array(image)
+        if grayScale == True:
+            return cv2.cvtColor(npImage, cv2.COLOR_RGB2GRAY)
+        return cv2.cvtColor(npImage, cv2.COLOR_RGB2BGR)
     def BuildFeatureCollector(self):
         data = {}
         for imgName in tqdm(os.listdir(self.DataPath), desc="Build feature collector"):
@@ -112,9 +124,17 @@ class SearchEngine:
     
 if __name__ == "__main__":
     config = {
-        "dataPath": None,
+        "dataPath": os.path.join(os.getcwd(), "data"),
         "collectorPath": os.path.join(os.getcwd(), "sample1.json"),
         "typeFeature": None
     }
     featureExtraction = FeatureExtraction(config= config)
+
+    imagePath = os.path.join(os.getcwd(), "data", "all_souls_000000.jpg")
+    image = Image.open(imagePath)
+    sift = featureExtraction.SIFT(image)
+    # opencv_image = featureExtraction.ToImageOpenCV(image=image, grayScale=True)
+    cv2.imshow("OpenCV Image", sift)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     # featureExtraction.BuildFeatureCollector()
