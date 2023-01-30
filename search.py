@@ -10,6 +10,7 @@ from tqdm import tqdm
 import cv2
 import numpy as np
 
+from fisher_vector import fisher_vector
 
 class FeatureExtraction:
     def __init__(self, config: dict = None) -> None:
@@ -138,13 +139,13 @@ if __name__ == "__main__":
     }
     featureExtraction = FeatureExtraction(config=config)
 
-    # imageID = "all_souls_000001.jpg"
-    # siftFeaturePath = os.path.join(os.getcwd(), "sift_feature")
-    # imagePath = os.path.join(os.getcwd(), "data", imageID)
-    # image = Image.open(imagePath)
-    # sift = featureExtraction.SiftFeatureExtraction(image, imageID = imageID, savePath = siftFeaturePath)
+    imageID = "all_souls_000002"
+    siftFeaturePath = os.path.join(os.getcwd(), "sift_feature")
+    imagePath = os.path.join(os.getcwd(), "data", imageID + ".jpg")
+    image = Image.open(imagePath)
+    sift = featureExtraction.SiftFeatureExtraction(image, imageID = imageID, savePath = siftFeaturePath)
     # opencv_image = featureExtraction.ToImageOpenCV(image=image, grayScale=True)
     # cv2.imshow("OpenCV Image", sift)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-    featureExtraction.BuildFeatureCollector()
+    # featureExtraction.BuildFeatureCollector()
