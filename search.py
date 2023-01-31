@@ -139,7 +139,7 @@ if __name__ == "__main__":
     }
     featureExtraction = FeatureExtraction(config=config)
 
-    imageID = "all_souls_000002"
+    imageID = "all_souls_000001"
     siftFeaturePath = os.path.join(os.getcwd(), "sift_feature")
     imagePath = os.path.join(os.getcwd(), "data", imageID + ".jpg")
     image = Image.open(imagePath)
