@@ -1,12 +1,15 @@
 import numpy as np
 import pdb
 import os
+import pickle
 
 from sklearn.datasets import make_classification
 from sklearn.mixture import GaussianMixture
 
+K = 128
+N = 256 * 1000
 
-def fisher_vector(xx, gmm):
+def FisherVectorExtraction(xx, gmm):
     """Computes the Fisher vector on a set of descriptors.
     Parameters
     ----------
@@ -48,44 +51,27 @@ def fisher_vector(xx, gmm):
     # Merge derivatives into a vector.
     return np.hstack((d_pi, d_mu.flatten(), d_sigma.flatten()))
 
-def SaveGaussianMixture(gmm, name, savePath):
-    gmm_des = os.path.join(savePath, name)
-    np.save(gmm_des + '_weights', gmm.weights_, allow_pickle=False)
-    np.save(gmm_des + '_means', gmm.means_, allow_pickle=False)
-    np.save(gmm_des + '_covariances', gmm.covariances_, allow_pickle=False)
+def TrainGaussianMixture(saveModel = True, saveModelPath = None):
+    gmm = GaussianMixture(n_components=K, covariance_type='diag')
+    gmm.fit(sample)
+    if saveModel:
+        if saveModelPath is None:
+            saveModelPath = os.path.join(os.getcwd(), "tmp")
+        SaveGaussianMixture(gmm, 'model.pkl', saveModelPath)
 
-def LoadGaussianMixture(name, savePath):
+def SaveGaussianMixture(gmm, name, savePath):
     gmm_name = os.path.join(savePath, name)
-    means = np.load(gmm_name + '_means.npy')
-    covar = np.load(gmm_name + '_covariances.npy')
-    loaded_gmm = GaussianMixture(n_components = len(means), covariance_type='full')
-    loaded_gmm.precisions_cholesky_ = np.linalg.cholesky(np.linalg.inv(covar))
-    loaded_gmm.weights_ = np.load(gmm_name + '_weights.npy')
-    loaded_gmm.means_ = means
-    loaded_gmm.covariances_ = covar
+    with open(gmm_name, 'wb') as file:
+        pickle.dump(gmm, file)
+
+def LoadGaussianMixture(savePath):
+    loaded_gmm = GaussianMixture(n_components = K, covariance_type='diag')
+    with open(savePath, 'rb') as file:
+        loaded_gmm = pickle.load(file)
     return loaded_gmm
 
-def main():
-    # Short demo.
-    K = 128
-    N = 256 * 1000
-
-    xx, _ = make_classification(n_samples=N)
-    xx_tr, xx_te = xx[: -100], xx[-100: ]
-
-    gmm = GaussianMixture(n_components=K, covariance_type='diag')
-    gmm.fit(xx_tr)
-
-    fv = fisher_vector(xx_te, gmm)
-    pdb.set_trace()
-
-
-if __name__ == '__main__':
-    # main()
-    K = 128
-    N = 256 * 1000
+def LoadSiftFeature(siftFeaturePath):
     # create stack vector of sift feature
-    siftFeaturePath = os.path.join(os.getcwd(), "sift_feature")
     all_desc = []
     for i, item in enumerate(os.listdir(siftFeaturePath)):
         hesaff_path = os.path.join(siftFeaturePath, item)
@@ -101,7 +87,6 @@ if __name__ == '__main__':
 
     # make a big matrix with all image descriptors
     all_desc = np.sqrt(np.vstack(all_desc))
-    print(all_desc.shape)
 
     # choose n_sample descriptors at random
     np.random.seed(1024)
@@ -109,8 +94,9 @@ if __name__ == '__main__':
     sample = all_desc[sample_indices]
 
     # until now sample was in uint8. Convert to float32
-    sample = sample.astype('float32')
+    return sample.astype('float32')
 
+def PCA_Transform(sample, save = False, savePath = None):
     # compute mean and covariance matrix for the PCA
     mean = sample.mean(axis = 0)
     sample = sample - mean
@@ -120,17 +106,44 @@ if __name__ == '__main__':
     eigvals, eigvecs = np.linalg.eig(cov)
     perm = eigvals.argsort()                   # sort by increasing eigenvalue
     pca_transform = eigvecs[:, perm[96:128]]   # eigenvectors for the 64 last eigenvalues
-
+    if save == True:
+        if savePath is None:
+            savePath = os.path.join(os.getcwd(), "tmp", "pca_transform.gmm")
+        np.save(savePath, pca_transform)
     # transform sample with PCA (note that numpy imposes line-vectors,
     # so we right-multiply the vectors)
-    sample = np.dot(sample, pca_transform)
-    print(sample.shape)
+    return np.dot(sample, pca_transform)
+    
+def main():
+    # Short demo.
 
-    saveModelPath = os.path.join(os.getcwd(), "tmp")
+    xx, _ = make_classification(n_samples=N)
+    xx_tr, xx_te = xx[: -100], xx[-100: ]
+
+    gmm = GaussianMixture(n_components=K, covariance_type='diag')
+    gmm.fit(xx_tr)
+
+    fv = fisher_vector(xx_te, gmm)
+    pdb.set_trace()
+
+if __name__ == '__main__':
+    # main()
+    config = {
+        "" : 1,
+        "siftFeaturePath": os.path.join(os.getcwd(), "sift_feature"),
+        "gmmSavePath": os.path.join(os.getcwd(), "tmp", "model.pkl")
+    }
+    K = 128
+    N = 256 * 1000
+
+    sample = LoadSiftFeature(siftFeaturePath= config['siftFeaturePath'])
+    sample = PCA_Transform(sample= sample)
+
     # gmm = GaussianMixture(n_components=K, covariance_type='diag')
     # gmm.fit(sample)
-    # SaveGaussianMixture(gmm, "gmm", saveModelPath)
+    # SaveGaussianMixture(gmm, 'model.pkl', saveModelPath)
 
-    gmm = LoadGaussianMixture("gmm", saveModelPath)
-    fv = fisher_vector(sample, gmm)
-    pdb.set_trace()
+    loaded_gmm = LoadGaussianMixture(config['gmmSavePath'])
+    fv = FisherVectorExtraction(sample, loaded_gmm)
+    print(fv.shape)
+    # pdb.set_trace()

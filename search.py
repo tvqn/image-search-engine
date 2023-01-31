@@ -10,7 +10,7 @@ from tqdm import tqdm
 import cv2
 import numpy as np
 
-from fisher_vector import fisher_vector
+from fisher_vector import FisherVectorExtraction
 
 class FeatureExtraction:
     def __init__(self, config: dict = None) -> None:
