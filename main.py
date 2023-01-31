@@ -21,16 +21,16 @@ async def search_image(image: bytes = File(), algorithm = None):
     return {
         "code": "200",
         "message": "Success",
-        "data": searchEngine.Query(image= Image.open(io.BytesIO(image)))
+        "data": searchEngine.Query(image= Image.open(io.BytesIO(image)), typeFeature= algorithm)
     }
 
 @app.post("/search_base64")
-async def search_image(image: str = Form(), algorithm = None):
+async def search_image(image: str = Form(), algorithm = "sift"):
     searchEngine = SearchEngine(indexDictPath="./sample.json")
     image_as_bytes = str.encode(image)
     img_recovered = base64.b64decode(image_as_bytes)
     return {
         "code": "200",
         "message": "Success",
-        "data": searchEngine.Query(image= Image.open(io.BytesIO(img_recovered)))
+        "data": searchEngine.Query(image= Image.open(io.BytesIO(img_recovered)), typeFeature = algorithm)
     }
