@@ -16,7 +16,7 @@ async def root():
     return {"message": "search-engine-v0"}
 
 @app.post("/search")
-async def search_image(image: bytes = File(), algorithm = None):
+async def search_image(image: bytes = File(), algorithm: str = Form()):
     searchEngine = SearchEngine(indexDictPath="./sample.json")
     return {
         "code": "200",
@@ -25,7 +25,7 @@ async def search_image(image: bytes = File(), algorithm = None):
     }
 
 @app.post("/search_base64")
-async def search_image(image: str = Form(), algorithm = "sift"):
+async def search_image(image: str = Form(), algorithm: str = Form()):
     searchEngine = SearchEngine(indexDictPath="./sample.json")
     image_as_bytes = str.encode(image)
     img_recovered = base64.b64decode(image_as_bytes)
