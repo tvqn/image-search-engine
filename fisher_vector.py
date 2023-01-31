@@ -1,10 +1,12 @@
 import numpy as np
+from numpy.linalg import norm
 import pdb
 import os
 import pickle
 
 from sklearn.datasets import make_classification
 from sklearn.mixture import GaussianMixture
+from sklearn.preprocessing import normalize as sknormalize
 import cv2
 from tqdm import tqdm
 import h5py
@@ -206,7 +208,16 @@ def BuildFisherVectorDict(config: dict):
     h5f['names'] = imgNames
     h5f.close()
 
-def compute_cosin_distance(Q, feats, names):
+def normalize(x, copy=False):
+    """
+    A helper function that wraps the function of the same name in sklearn.
+    This helper handles the case of a single column vector.
+    """
+    if type(x) == np.ndarray and len(x.shape) == 1:
+        return np.squeeze(sknormalize(x.reshape(1, -1), copy=copy))
+    else:
+        return sknormalize(x, copy=copy)
+def compute_cosin_distance(Q, feats, names, k = None):
     """
     feats and Q: L2-normalize, n*d
     """
@@ -214,7 +225,11 @@ def compute_cosin_distance(Q, feats, names):
     idxs = np.argsort(dists)[::-1]
     rank_dists = dists[idxs]
     rank_names = [names[k] for k in idxs]
-    return (idxs, rank_dists, rank_names)
+    # return (idxs, rank_dists, rank_names)
+    return (
+        idxs[:k], 
+        rank_dists[:k], 
+        [name for idx, name in enumerate(rank_names) if idx in idxs[:k]])
 
 def compute_euclidean_distance(Q, feats, names, k = None):
     if k is None:
@@ -243,6 +258,7 @@ def reranking(Q, data, inds, names, top_k = 50):
 def QuerySift(image, config):
     h5f = h5py.File(config["featureSavePath"] , 'r')
     feats = h5f['feats']
+    feats = normalize(feats, copy=False)
     names = list(h5f['names'])
     
     # Extract feature of image
@@ -250,10 +266,12 @@ def QuerySift(image, config):
     sift = np.sqrt(SiftFeatureExtraction(image, imageID = None, savePath = None))
     sift = PCA_Transform(sample= sift)
     feature = FisherVectorExtraction(sift, gmm)
+    feature = normalize(feature)
     # Query
-    idxs, rank_dists, rank_names = compute_euclidean_distance(feature, feats, names, config["topK"])
-    nameRslts = [name for idx, name in enumerate(rank_names) if idx in idxs]
-    return list(zip(rank_dists, nameRslts))
+    # idxs, rank_dists, rank_names = compute_euclidean_distance(feature, feats, names, config["topK"])
+    idxs, rank_dists, rank_names = compute_cosin_distance(feature, feats, names, config["topK"])
+    # nameRslts = [name for idx, name in enumerate(rank_names) if idx in idxs]
+    return list(zip(rank_dists, rank_names))
 
 def main():
     # Short demo.
