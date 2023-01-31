@@ -1,10 +1,13 @@
 import numpy as np
 import pdb
 import os
+import pickle
 
 from sklearn.datasets import make_classification
 from sklearn.mixture import GaussianMixture
 
+K = 128
+N = 256 * 1000
 
 def fisher_vector(xx, gmm):
     """Computes the Fisher vector on a set of descriptors.
@@ -49,26 +52,19 @@ def fisher_vector(xx, gmm):
     return np.hstack((d_pi, d_mu.flatten(), d_sigma.flatten()))
 
 def SaveGaussianMixture(gmm, name, savePath):
-    gmm_des = os.path.join(savePath, name)
-    np.save(gmm_des + '_weights', gmm.weights_, allow_pickle=False)
-    np.save(gmm_des + '_means', gmm.means_, allow_pickle=False)
-    np.save(gmm_des + '_covariances', gmm.covariances_, allow_pickle=False)
+    gmm_name = os.path.join(savePath, name)
+    with open(gmm_name, 'wb') as file:
+        pickle.dump(gmm, file)
 
 def LoadGaussianMixture(name, savePath):
     gmm_name = os.path.join(savePath, name)
-    means = np.load(gmm_name + '_means.npy')
-    covar = np.load(gmm_name + '_covariances.npy')
-    loaded_gmm = GaussianMixture(n_components = len(means), covariance_type='full')
-    loaded_gmm.precisions_cholesky_ = np.linalg.cholesky(np.linalg.inv(covar))
-    loaded_gmm.weights_ = np.load(gmm_name + '_weights.npy')
-    loaded_gmm.means_ = means
-    loaded_gmm.covariances_ = covar
+    loaded_gmm = GaussianMixture(n_components = K, covariance_type='diag')
+    with open(gmm_name, 'rb') as file:
+        loaded_gmm = pickle.load(file)
     return loaded_gmm
 
 def main():
     # Short demo.
-    K = 128
-    N = 256 * 1000
 
     xx, _ = make_classification(n_samples=N)
     xx_tr, xx_te = xx[: -100], xx[-100: ]
@@ -127,10 +123,12 @@ if __name__ == '__main__':
     print(sample.shape)
 
     saveModelPath = os.path.join(os.getcwd(), "tmp")
-    # gmm = GaussianMixture(n_components=K, covariance_type='diag')
+    gmm = GaussianMixture(n_components=K, covariance_type='diag')
     # gmm.fit(sample)
-    # SaveGaussianMixture(gmm, "gmm", saveModelPath)
+    # SaveGaussianMixture(gmm, 'model.pkl', saveModelPath)
+    # Serialize and save the model
+    gmm_name = os.path.join(saveModelPath, )
 
-    gmm = LoadGaussianMixture("gmm", saveModelPath)
+    gmm = LoadGaussianMixture("model.pkl", saveModelPath)
     fv = fisher_vector(sample, gmm)
     pdb.set_trace()
