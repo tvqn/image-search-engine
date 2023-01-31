@@ -7,6 +7,7 @@ from sklearn.datasets import make_classification
 from sklearn.mixture import GaussianMixture
 import cv2
 from tqdm import tqdm
+import h5py
 
 K = 128
 N = 256 * 1000
@@ -175,10 +176,28 @@ def BuildFisherVectorDict(config: dict):
     else:
         gmm = LoadGaussianMixture(config['gmmSavePath'])
 
+    features = []
+    imgNames = []
     for item in tqdm(os.listdir(config['siftFeaturePath']), desc= "Load sift_feature"):
         sample = LoadSiftFeature(os.path.join(config["siftFeaturePath"], item))
         sample = PCA_Transform(sample= sample)
         fv = FisherVectorExtraction(sample, gmm)
+        features.append(fv)
+        imgNames.append(item.split(".")[0])
+    # make one matrix with all FVs
+    features = np.vstack(features)
+
+    # power-normalization
+    features = np.sign(features) * np.abs(features) ** 0.5
+
+    h5f = h5py.File(config["featureSavePath"] , 'w')
+
+    h5f['feats'] = features
+    h5f['names'] = imgNames
+    h5f.close()
+
+def Query():
+    pass
 
 def main():
     # Short demo.
@@ -199,7 +218,8 @@ if __name__ == '__main__':
         "n_sample" : 256 * 1000,
         "trainGMM": False,
         "siftFeaturePath": os.path.join(os.getcwd(), "sift_feature"),
-        "gmmSavePath": os.path.join(os.getcwd(), "tmp", "gmm.pkl")
+        "gmmSavePath": os.path.join(os.getcwd(), "tmp", "gmm.pkl"),
+        "featureSavePath": os.path.join(os.getcwd(), "tmp", 'fisher.h5')
     }
 
     BuildFisherVectorDict(config)
