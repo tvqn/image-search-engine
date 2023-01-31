@@ -155,6 +155,7 @@ def PCA_Transform(sample, save = False, savePath = None):
 
     # compute PCA matrix and keep only 64 dimensions
     eigvals, eigvecs = np.linalg.eig(cov)
+    eigvals, eigvecs = eigvals.real, eigvecs.real
     perm = eigvals.argsort()                   # sort by increasing eigenvalue
     pca_transform = eigvecs[:, perm[96:128]]   # eigenvectors for the 64 last eigenvalues
     if save == True:
@@ -166,19 +167,19 @@ def PCA_Transform(sample, save = False, savePath = None):
     return np.dot(sample, pca_transform)
 
 def BuildFisherVectorDict(config: dict):
-    for item in tqdm(os.listdir(config['dataset']), desc="Creat sift_feature"):
-        imageID = item.split(".jpg")[0]
-        imagePath = os.path.join(config["dataset"], item)
-        image = Image.open(imagePath)
-        SiftFeatureExtraction(pil_image = image, imageID = imageID, savePath = config['siftFeaturePath'])
-
-    sampleStack = LoadSiftFeatureStack(siftFeaturePath= config['siftFeaturePath'])
-    sampleStack = PCA_Transform(sample= sampleStack)
+    if config['createSiftFeature'] == True:
+        for item in tqdm(os.listdir(config['dataset']), desc="Creat sift_feature"):
+            imageID = item.split(".jpg")[0]
+            imagePath = os.path.join(config["dataset"], item)
+            image = Image.open(imagePath)
+            SiftFeatureExtraction(pil_image = image, imageID = imageID, savePath = config['siftFeaturePath'])
 
     gmm = GaussianMixture(n_components= config["n_components"], covariance_type='diag')
     if config["trainGMM"] == True:
+        sampleStack = LoadSiftFeatureStack(siftFeaturePath= config['siftFeaturePath'])
+        sampleStack = PCA_Transform(sample= sampleStack)
         gmm = TrainGaussianMixture(
-            sample= sample, 
+            sample= sampleStack, 
             n_components = config['n_components'],
             saveModelPath = config['gmmSavePath'])
     else:
@@ -187,6 +188,7 @@ def BuildFisherVectorDict(config: dict):
     features = []
     imgNames = []
     for item in tqdm(os.listdir(config['siftFeaturePath']), desc= "Load sift_feature"):
+    # for item in os.listdir(config['siftFeaturePath']):
         sample = LoadSiftFeature(os.path.join(config["siftFeaturePath"], item))
         sample = PCA_Transform(sample= sample)
         fv = FisherVectorExtraction(sample, gmm)
@@ -238,20 +240,20 @@ def reranking(Q, data, inds, names, top_k = 50):
     names[:top_k] = sub_rerank_names
     return 
 
-def Query(image, config):
+def QuerySift(image, config):
     h5f = h5py.File(config["featureSavePath"] , 'r')
     feats = h5f['feats']
     names = list(h5f['names'])
     
     # Extract feature of image
     gmm = LoadGaussianMixture(config['gmmSavePath'])
-    sift = np.sqrt(SiftFeatureExtraction(image, imageID = imageID, savePath = siftFeaturePath))
+    sift = np.sqrt(SiftFeatureExtraction(image, imageID = None, savePath = None))
     sift = PCA_Transform(sample= sift)
     feature = FisherVectorExtraction(sift, gmm)
     # Query
-    idxs, rank_dists, rank_names = compute_euclidean_distance(feature, feats, names, 1)
-
-    print([name for name in rank_names])
+    idxs, rank_dists, rank_names = compute_euclidean_distance(feature, feats, names, config["topK"])
+    nameRslts = [name for idx, name in enumerate(rank_names) if idx in idxs]
+    return list(zip(rank_dists, nameRslts))
 
 def main():
     # Short demo.
@@ -271,22 +273,28 @@ if __name__ == '__main__':
         "n_components" : 128,
         "n_sample" : 256 * 1000,
         "trainGMM": False,
+        "createSiftFeature": False,
         "dataset": os.path.join(os.getcwd(), "data"),
         "siftFeaturePath": os.path.join(os.getcwd(), "sift_feature"),
         "gmmSavePath": os.path.join(os.getcwd(), "tmp", "gmm.pkl"),
         "featureSavePath": os.path.join(os.getcwd(), "tmp", 'fisher.h5')
     }
 
-    BuildFisherVectorDict(config)
+    # BuildFisherVectorDict(config)
     # siftFeaturePath = os.path.join(os.getcwd(), "sift_feature", "all_souls_000001.opencv.sift")
     # load_sift = LoadSiftFeature(siftFeaturePath)
     # print(load_sift.shape)
     # hesaff_info = np.loadtxt(siftFeaturePath, skiprows=2)
     # print(hesaff_info.shape)
-    # imageID = "all_souls_000002"
-    # siftFeaturePath = os.path.join(os.getcwd(), "sift_feature")
-    # imagePath = os.path.join(os.getcwd(), "data", imageID + ".jpg")
-    # image = Image.open(imagePath)
+    imageID = "all_souls_000002"
+    siftFeaturePath = os.path.join(os.getcwd(), "sift_feature")
+    imagePath = os.path.join(os.getcwd(), "data", imageID + ".jpg")
+    image = Image.open(imagePath)
 
-    # Query(image= image, config= config)
+    configQuery = {
+        "topK": 10,
+        "gmmSavePath": os.path.join(os.getcwd(), "tmp", "gmm.pkl"),
+        "featureSavePath": os.path.join(os.getcwd(), "tmp", 'fisher.h5')
+    }
+    QuerySift(image= image, config= configQuery)
     # pdb.set_trace()

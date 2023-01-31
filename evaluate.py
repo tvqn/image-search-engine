@@ -53,10 +53,10 @@ if __name__ == "__main__":
     aps = []
     rank_file = os.getcwd() + "tmp.txt"
     for idx, query in enumerate(tqdm(images, desc="Calculate mAP")):
-        result = searchEngine.Query(image= images[idx], topK= 10)
+        result = searchEngine.Query(image= images[idx], topK= 10, typeFeature="sift")
 
         with open(rank_file, 'w') as f:
-            f.writelines([name[1].split('.jpg')[0] + '\n' for name in result])
+            f.writelines([name['name'][1].split('.jpg')[0] + '\n' for name in result])
         # compute mean average precision
         gt_prefix = os.path.join(config["groundTruthPath"], prefix_file_query_names[idx])
         cmd = 'compute_ap %s %s' % (gt_prefix, rank_file)

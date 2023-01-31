@@ -10,7 +10,7 @@ from tqdm import tqdm
 import cv2
 import numpy as np
 
-from fisher_vector import FisherVectorExtraction
+from fisher_vector import FisherVectorExtraction, QuerySift
 
 class FeatureExtraction:
     def __init__(self, config: dict = None) -> None:
@@ -91,25 +91,41 @@ class SearchEngine:
         with open(path) as indexFile:
             self.IndexDict = json.load(indexFile)
 
-    def Query(self, image: Image, topK: int = 10, verbose: bool = False):
-        hash = imagehash.average_hash(image)
-        # Metric algorithm
-        calculateSimilarRslt = []
-        for i in tqdm(self.IndexDict.keys(), desc="Query", disable=not verbose):
-            similarRslt = self.CalculateSimilar(
-                i, hash, imagehash.hex_to_hash(self.IndexDict[i]['feature']))
-            calculateSimilarRslt.append(
-                [similarRslt[0], similarRslt[1], self.IndexDict[i]['size']])
-            # #Hammington distance
-            # score.append(hash - imagehash.hex_to_hash(self.IndexDict[i]['feature']))
-            # name.append(i)
-        # Ranking
-        # for img in sorted(zip(score, name))[:10]:
-        #     src = os.path.join('data', img[1])
-        #     dst = 'result'
-        #     shutil.copy(src, dst)
-        # return self.Ranking(zip(score, name), 10);
-        getTop = self.Ranking(result=calculateSimilarRslt, topK=topK)
+    def Query(self, image: Image, topK: int = 10, typeFeature = None, verbose: bool = False):
+        getTop = []
+        if typeFeature == "sift":
+            configQuery = {
+                "topK": 10,
+                "gmmSavePath": os.path.join(os.getcwd(), "tmp", "gmm.pkl"),
+                "featureSavePath": os.path.join(os.getcwd(), "tmp", 'fisher.h5')
+            }
+            siftQueryRslt = QuerySift(image= image, config= configQuery)
+            for item in siftQueryRslt:
+                imageID = item[1].decode("utf-8") + '.jpg'
+                getTop.append([
+                    item[0],
+                    imageID,
+                    self.IndexDict[imageID]['size']
+                ])
+        else:
+            hash = imagehash.average_hash(image)
+            # Metric algorithm
+            calculateSimilarRslt = []
+            for i in tqdm(self.IndexDict.keys(), desc="Query", disable=not verbose):
+                similarRslt = self.CalculateSimilar(
+                    i, hash, imagehash.hex_to_hash(self.IndexDict[i]['feature']))
+                calculateSimilarRslt.append(
+                    [similarRslt[0], similarRslt[1], self.IndexDict[i]['size']])
+                # #Hammington distance
+                # score.append(hash - imagehash.hex_to_hash(self.IndexDict[i]['feature']))
+                # name.append(i)
+            # Ranking
+            # for img in sorted(zip(score, name))[:10]:
+            #     src = os.path.join('data', img[1])
+            #     dst = 'result'
+            #     shutil.copy(src, dst)
+            # return self.Ranking(zip(score, name), 10);
+            getTop = self.Ranking(result=calculateSimilarRslt, topK=topK)
 
         result = []
         for item in getTop:
